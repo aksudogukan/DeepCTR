@@ -4,7 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
 from deepctr.feature_column import SparseFeat, get_feature_names
-from deepctr.models import FLEN
+from deepctr.models import FiBiNET
 
 if __name__ == "__main__":
     data = pd.read_csv('./avazu_sample.txt')
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     test_model_input = {name: test[name] for name in feature_names}
 
     # 4.Define Model,train,predict and evaluate
-    model = FLEN(linear_feature_columns, dnn_feature_columns, task='binary')
+    model = FiBiNET(linear_feature_columns, dnn_feature_columns, task='binary')
     model.compile("adam", "binary_crossentropy",
                   metrics=['binary_crossentropy'], )
 

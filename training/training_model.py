@@ -4,10 +4,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
 from deepctr.feature_column import SparseFeat, get_feature_names
-from deepctr.models import FLEN
+from deepctr.models import DeepFM
+
+
+pre
 
 if __name__ == "__main__":
-    data = pd.read_csv('./avazu_sample.txt')
+    data = pd.read_csv('../examples/avazu_sample.txt')
     data['day'] = data['hour'].apply(lambda x: str(x)[4:6])
     data['hour'] = data['hour'].apply(lambda x: str(x)[6:])
 
@@ -53,7 +56,7 @@ if __name__ == "__main__":
     test_model_input = {name: test[name] for name in feature_names}
 
     # 4.Define Model,train,predict and evaluate
-    model = FLEN(linear_feature_columns, dnn_feature_columns, task='binary')
+    model = DeepFM(linear_feature_columns, dnn_feature_columns, task='binary')
     model.compile("adam", "binary_crossentropy",
                   metrics=['binary_crossentropy'], )
 

@@ -1,13 +1,15 @@
+import copy
+
 import pandas as pd
 from sklearn.metrics import log_loss, roc_auc_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
-from deepctr.feature_column import SparseFeat, get_feature_names
-from deepctr.models import FLEN
+from deepctr.feature_column import SparseFeat, DenseFeat, get_feature_names
+from deepctr.models import FiBiNET, MiFiNN
 
 if __name__ == "__main__":
-    data = pd.read_csv('./avazu_sample.txt')
+    """data = pd.read_csv('./avazu_sample.txt')
     data['day'] = data['hour'].apply(lambda x: str(x)[4:6])
     data['hour'] = data['hour'].apply(lambda x: str(x)[6:])
 
@@ -18,28 +20,31 @@ if __name__ == "__main__":
                        'C15', 'C16', 'C17', 'C18', 'C19', 'C20', 'C21', ]
 
     data[sparse_features] = data[sparse_features].fillna('-1', )
-    target = ['click']
+    target = ['click']"""
+
+    data = pd.read_csv('./criteo_sample.txt')
+
+    sparse_features = ['C' + str(i) for i in range(1, 27)]
+    dense_features = ['I' + str(i) for i in range(1, 14)]
+
+    data[sparse_features] = data[sparse_features].fillna('-1', )
+    data[dense_features] = data[dense_features].fillna(0, )
+    target = ['label']
 
     # 1.Label Encoding for sparse features,and do simple Transformation for dense features
     for feat in sparse_features:
+        # print("data[feat]:", data[feat])
         lbe = LabelEncoder()
         data[feat] = lbe.fit_transform(data[feat])
+        # print("data[feat]:", data[feat])
+    mms = MinMaxScaler(feature_range=(0, 1))
+    data[dense_features] = mms.fit_transform(data[dense_features])
 
     # 2.count #unique features for each sparse field,and record dense feature field name
 
-    field_info = dict(C14='user', C15='user', C16='user', C17='user',
-                      C18='user', C19='user', C20='user', C21='user', C1='user',
-                      banner_pos='context', site_id='context',
-                      site_domain='context', site_category='context',
-                      app_id='item', app_domain='item', app_category='item',
-                      device_model='user', device_type='user',
-                      device_conn_type='context', hour='context',
-                      device_id='user'
-                      )
-
-    fixlen_feature_columns = [
-        SparseFeat(name, vocabulary_size=data[name].max() + 1, embedding_dim=16, use_hash=False, dtype='int32',
-                   group_name=field_info[name]) for name in sparse_features]
+    fixlen_feature_columns = [SparseFeat(feat, vocabulary_size=data[feat].max() + 1, embedding_dim=4)
+                              for feat in sparse_features] + [DenseFeat(feat, 1, )
+                                                              for feat in dense_features]
 
     dnn_feature_columns = fixlen_feature_columns
     linear_feature_columns = fixlen_feature_columns
@@ -48,12 +53,25 @@ if __name__ == "__main__":
 
     # 3.generate input data for model
 
+    #mi score
+    from sklearn.feature_selection import mutual_info_classif
+    print(data.head(5))
+    print(data.shape)
+    print(data.columns)
+    data_copy = copy.deepcopy(data)
+    label = data_copy.pop(target[0])
+    print("label", label.head(2))
+    print("sparse_features", sparse_features)
+    score = mutual_info_classif(data_copy[sparse_features], label)
+    print(score)
+
     train, test = train_test_split(data, test_size=0.2, random_state=2020)
     train_model_input = {name: train[name] for name in feature_names}
     test_model_input = {name: test[name] for name in feature_names}
 
     # 4.Define Model,train,predict and evaluate
-    model = FLEN(linear_feature_columns, dnn_feature_columns, task='binary')
+    model = MiFiNN(score, linear_feature_columns, dnn_feature_columns, task='binary')
+    # model = FiBiNET(linear_feature_columns, dnn_feature_columns, task='binary')
     model.compile("adam", "binary_crossentropy",
                   metrics=['binary_crossentropy'], )
 
